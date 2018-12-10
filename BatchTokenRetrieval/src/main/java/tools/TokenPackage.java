@@ -1,11 +1,4 @@
-package com.aliyun.cloudcallcenter.crm.aliyun;
-
-import com.alibaba.fastjson.JSONObject;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.nimbusds.jose.util.Base64;
-//import com.nimbusds.jwt.ReadOnlyJWTClaimsSet;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
+package tools;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -13,11 +6,20 @@ import java.text.ParseException;
 import java.util.Date;
 import java.util.Map;
 
+import com.alibaba.fastjson.JSONObject;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.nimbusds.jose.util.Base64;
+import com.nimbusds.jwt.ReadOnlyJWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
+
 /**
  * @author edward
- * @date 2017/11/12
+ * @date 2018/5/18
  */
 public class TokenPackage implements Serializable {
+
+    public static final String TOKEN_TYPE_STS = "AliyunSTS";
 
     private String accessToken;
 
@@ -43,10 +45,14 @@ public class TokenPackage implements Serializable {
 
     public static TokenPackage parse(String token) throws ParseException, IOException {
         TokenPackage tokenPackage = JSONObject.parseObject(token, TokenPackage.class);
+        if (TOKEN_TYPE_STS.equals(tokenPackage.getTokenType())) {
+            Base64 base64 = new Base64(tokenPackage.getAccessToken());
+            Credentials credentials = HttpRequester.deserialize(base64.decodeToString(), Credentials.class);
+            tokenPackage.setCredentials(credentials);
+        }
         if (tokenPackage.getIdToken() != null) {
             SignedJWT signedJWT = SignedJWT.parse(tokenPackage.getIdToken());
-            //ReadOnlyJWTClaimsSet jwtClaimsSet = signedJWT.getJWTClaimsSet();
-            JWTClaimsSet jwtClaimsSet = signedJWT.getJWTClaimsSet();
+            ReadOnlyJWTClaimsSet jwtClaimsSet = signedJWT.getJWTClaimsSet();
             UserInfo userInfo = new UserInfo();
             userInfo.setPrincipalName(jwtClaimsSet.getStringClaim("upn"));
             userInfo.setName(jwtClaimsSet.getStringClaim("name"));
@@ -224,3 +230,4 @@ public class TokenPackage implements Serializable {
         }
     }
 }
+
